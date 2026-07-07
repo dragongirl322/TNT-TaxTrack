@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TNT Tax Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f3effa;
+      --surface: #ffffff;
+      --primary: #7c2c9e;
+      --primary-dark: #5b1f74;
+      --secondary: #b98ed3;
+      --accent: #13def5;
+      --yellow: #f7e240;
+      --black: #010e10;
+      --text: #0f172a;
+      --muted: #6b7280;
+      --border: #dcd3e8;
+      --success: #0f766e;
+      --danger: #b91c1c;
+      --success-bg: #d1fae5;
+      --success-fg: #065f46;
+      --danger-bg: #fee2e2;
+      --danger-fg: #991b1b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(180deg, #f7f4fc 0%, var(--bg) 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      background: var(--black);
+      color: white;
+      padding: 1.1rem 1.4rem;
+      border-bottom: 3px solid var(--primary);
+    }
+    header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: 0.08em;
+      font-weight: 400;
+    }
+    header h1 span { color: var(--accent); }
+    header p {
+      font-size: 0.75rem;
+      color: var(--secondary);
+      margin-top: 0.2rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    nav {
+      background: var(--primary);
+      display: flex;
+      overflow-x: auto;
+      gap: 0.25rem;
+      padding: 0 0.5rem;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.7);
+      padding: 0.75rem 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+    }
+    nav button.active {
+      color: white;
+      border-bottom-color: var(--yellow);
+    }
+    .container { max-width: 1080px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem;
+      box-shadow: 0 10px 30px rgba(1, 14, 16, 0.04);
+      margin-bottom: 1rem;
+    }
+    h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.55rem;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+    }
+    .grid { display: grid; gap: 1rem; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 760px) {
+      .grid.two, .grid.three { grid-template-columns: 1fr; }
+    }
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      background: linear-gradient(135deg, #fff 0%, #f9f5fd 100%);
+    }
+    .stat .label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.35rem; }
+    .stat .value { font-size: 1.35rem; font-weight: 700; color: var(--primary-dark); }
+    .stat .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    .form-grid { display: grid; gap: 0.8rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .field { display: flex; flex-direction: column; gap: 0.35rem; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    input, select, textarea {
+      padding: 0.7rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: inherit;
+      color: var(--text);
+      background: white;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,44,158,0.12); }
+    .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 0.68rem 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: var(--primary);
+    }
+    .btn.secondary { background: var(--primary-dark); }
+    .btn.ghost { background: #f3ebfb; color: var(--primary-dark); border: 1px solid var(--border); }
+    .btn.small { padding: 0.45rem 0.75rem; font-size: 0.85rem; }
+    .alert {
+      padding: 0.8rem 0.9rem;
+      border-radius: 8px;
+      margin-bottom: 0.8rem;
+      font-weight: 600;
+    }
+    .alert.success { background: var(--success-bg); color: var(--success-fg); }
+    .alert.error { background: var(--danger-bg); color: var(--danger-fg); }
+    .list { list-style: none; display: flex; flex-direction: column; gap: 0.7rem; }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.8rem;
+      padding: 0.8rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fcfbfe;
+    }
+    .item-main { flex: 1; min-width: 0; }
+    .item-title { font-weight: 700; color: var(--primary-dark); }
+    .item-meta { font-size: 0.82rem; color: var(--muted); margin-top: 0.25rem; }
+    .item-amount { font-weight: 700; white-space: nowrap; color: var(--black); }
+    .item-actions { display: flex; gap: 0.4rem; }
+    .item-actions button { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 0.9rem; }
+    .item-actions button:hover { color: var(--primary); }
+    .pill-row { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+    .pill {
+      border: 1px solid var(--border);
+      background: #fff;
+      padding: 0.45rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.7rem 0.5rem; border-bottom: 1px solid var(--border); text-align: left; }
+    th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    tbody tr:hover { background: #fcfbfe; }
+    .empty { color: var(--muted); text-align: center; padding: 1.2rem 0.5rem; }
+    .subtle { color: var(--muted); font-size: 0.86rem; }
+    .trend-up { color: #0f766e; font-weight: 700; }
+    .trend-down { color: #b91c1c; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>TNT</span> Tax Tracker</h1>
+    <p>TNT Music · Vinyl Record Store</p>
+  </header>
+
+  <nav id="main-nav">
+    <button data-tab="expenses">Expenses</button>
+    <button data-tab="sales">Sales Revenue</button>
+    <button data-tab="reports">Quarterly Reports</button>
+    <button class="active" data-tab="dashboard">Dashboard</button>
+  </nav>
+
+  <div class="container">
+    <div id="tab-dashboard" class="panel active">
+      <h2>Dashboard</h2>
+      <div class="card">
+        <div class="pill-row">
+          <button class="pill active" data-dashboard-year="current">Current Year</button>
+          <select id="dashboard-year"></select>
+        </div>
+        <div class="grid three" id="dashboard-stats"></div>
+        <div id="dashboard-trend" class="grid two" style="margin-top: 1rem;"></div>
+      </div>
+    </div>
+
+    <div id="tab-expenses" class="panel">
+      <h2>Expenses</h2>
+      <div class="card">
+        <div id="expense-alert"></div>
+        <form id="expense-form">
+          <div class="form-grid">
+            <div class="field">
+              <label>Date</label>
+              <input type="date" id="expense-date" required />
+            </div>
+            <div class="field">
+              <label>Amount</label>
+              <input type="number" id="expense-amount" step="0.01" min="0.01" placeholder="0.00" required />
+            </div>
+            <div class="field full">
+              <label>Category</label>
+              <select id="expense-category" required></select>
+            </div>
+            <div class="field full">
+              <label>Description</label>
+              <input type="text" id="expense-description" placeholder="e.g. January rent payment" />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" type="submit" id="expense-submit">Save Expense</button>
+            <button class="btn ghost" type="button" id="expense-cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2 style="font-size: 1.25rem; margin-bottom: 0.7rem;">Saved Expenses</h2>
+        <div id="expense-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-sales" class="panel">
+      <h2>Sales Revenue</h2>
+      <div class="card">
+        <div id="sale-alert"></div>
+        <form id="sale-form">
+          <div class="form-grid">
+            <div class="field">
+              <label>Date</label>
+              <input type="date" id="sale-date" required />
+            </div>
+            <div class="field">
+              <label>Amount</label>
+              <input type="number" id="sale-amount" step="0.01" min="0.01" placeholder="0.00" required />
+            </div>
+            <div class="field full">
+              <label>Description</label>
+              <input type="text" id="sale-description" placeholder="e.g. Record store sale" />
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn secondary" type="submit" id="sale-submit">Save Revenue</button>
+            <button class="btn ghost" type="button" id="sale-cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
+      <div class="card">
+        <h2 style="font-size: 1.25rem; margin-bottom: 0.7rem;">Saved Revenue</h2>
+        <div id="sale-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-reports" class="panel">
+      <h2>Quarterly Reports</h2>
+      <div class="card">
+        <div class="pill-row">
+          <select id="report-year"></select>
+          <button class="pill active" data-quarter="1">Q1</button>
+          <button class="pill" data-quarter="2">Q2</button>
+          <button class="pill" data-quarter="3">Q3</button>
+          <button class="pill" data-quarter="4">Q4</button>
+        </div>
+        <div id="quarter-report"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CATEGORIES = [
+      'Utilities + Security',
+      'Phone',
+      'Internet',
+      'Rent',
+      'Inventory',
+      'Business Supplies',
+      'Office Supplies',
+      'Advertising',
+      'Wages',
+      'Payroll Taxes',
+      'WA State Taxes',
+      'Sales Tax',
+      'General Business Expense',
+      'Repairs and Maintenance',
+      'Leasehold Asset',
+      'Tech Asset',
+      'Meals',
+      'Travel'
+    ];
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const Q_RANGES = { 1:[0,2], 2:[3,5], 3:[6,8], 4:[9,11] };
+
+    let expenses = [];
+    let sales = [];
+    let editingExpenseId = null;
+    let editingSaleId = null;
+    let activeQuarter = 1;
+
+    function currency(value) {
+      return '$' + Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function today() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    function readLegacyStorage(key) {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function normalizeLegacyExpense(item) {
+      return {
+        id: item.id || `legacy-expense-${Math.random().toString(16).slice(2)}`,
+        date: item.date,
+        amount: Number(item.amount || 0),
+        category: item.category || 'General Business Expense',
+        description: item.description || ''
+      };
+    }
+
+    function normalizeLegacySale(item) {
+      return {
+        id: item.id || `legacy-sale-${Math.random().toString(16).slice(2)}`,
+        date: item.date,
+        amount: Number(item.amount || 0),
+        description: item.description || 'Legacy revenue entry'
+      };
+    }
+
+    async function syncLegacyData() {
+      const legacyExpenses = readLegacyStorage('expenses').map(normalizeLegacyExpense);
+      const legacySales = readLegacyStorage('sales').map(normalizeLegacySale);
+      const hasLegacyData = legacyExpenses.length || legacySales.length;
+      if (!hasLegacyData) return;
+
+      try {
+        const remoteExpenses = await fetchJson('/api/expenses');
+        const remoteSales = await fetchJson('/api/sales');
+
+        const mergedExpenses = [...remoteExpenses];
+        legacyExpenses.forEach(item => {
+          const exists = mergedExpenses.some(existing => existing.id === item.id || (existing.date === item.date && existing.amount === item.amount && existing.category === item.category && existing.description === item.description));
+          if (!exists) mergedExpenses.push(item);
+        });
+
+        const mergedSales = [...remoteSales];
+        legacySales.forEach(item => {
+          const exists = mergedSales.some(existing => existing.id === item.id || (existing.date === item.date && existing.amount === item.amount && existing.description === item.description));
+          if (!exists) mergedSales.push(item);
+        });
+
+        if (mergedExpenses.length !== remoteExpenses.length || mergedSales.length !== remoteSales.length) {
+          await Promise.all([
+            ...mergedExpenses.filter((item, index) => index >= remoteExpenses.length).map(item => fetchJson('/api/expenses', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            })),
+            ...mergedSales.filter((item, index) => index >= remoteSales.length).map(item => fetchJson('/api/sales', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(item)
+            }))
+          ]);
+          localStorage.setItem('expenses', '[]');
+          localStorage.setItem('sales', '[]');
+        }
+      } catch (error) {
+        console.warn('Legacy data sync skipped:', error.message);
+      }
+    }
+
+    function lastDayOf(year, monthIndex) {
+      const day = new Date(year, monthIndex + 1, 0).getDate();
+      return `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function fmtDate(date) {
+      const [year, month, day] = date.split('-');
+      return `${MONTHS[Number(month) - 1].slice(0, 3)} ${Number(day)}, ${year}`;
+    }
+
+    function getQuarterForDate(date) {
+      const month = new Date(date).getMonth() + 1;
+      if (month <= 3) return 1;
+      if (month <= 6) return 2;
+      if (month <= 9) return 3;
+      return 4;
+    }
+
+    function getQuarterBounds(year, quarter) {
+      const [startMonth, endMonth] = Q_RANGES[quarter];
+      return {
+        start: `${year}-${String(startMonth + 1).padStart(2, '0')}-01`,
+        end: lastDayOf(year, endMonth)
+      };
+    }
+
+    function sumExpenses(list, start, end) {
+      return list.filter(item => item.date >= start && item.date <= end).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    }
+
+    function sumSales(list, start, end) {
+      return list.filter(item => item.date >= start && item.date <= end).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    }
+
+    function sumByCategory(items, start, end) {
+      const totals = Object.fromEntries(CATEGORIES.map(category => [category, 0]));
+      items.filter(item => item.date >= start && item.date <= end).forEach(item => {
+        if (totals[item.category] !== undefined) {
+          totals[item.category] += Number(item.amount || 0);
+        }
+      });
+      return totals;
+    }
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Request failed');
+      }
+      return response.headers.get('content-type')?.includes('application/json') ? response.json() : response.text();
+    }
+
+    async function loadData() {
+      try {
+        await syncLegacyData();
+        const [expenseData, saleData] = await Promise.all([
+          fetchJson('/api/expenses'),
+          fetchJson('/api/sales')
+        ]);
+        expenses = expenseData;
+        sales = saleData;
+        renderAll();
+      } catch (error) {
+        showAlert('expense-alert', error.message, 'error');
+        showAlert('sale-alert', error.message, 'error');
+      }
+    }
+
+    function showAlert(id, message, type = 'success') {
+      const host = document.getElementById(id);
+      host.innerHTML = `<div class="alert ${type}">${message}</div>`;
+      setTimeout(() => { if (host.innerHTML.includes(message)) host.innerHTML = ''; }, 4000);
+    }
+
+    function populateCategorySelect() {
+      const select = document.getElementById('expense-category');
+      select.innerHTML = '<option value="">Select a category…</option>';
+      CATEGORIES.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        select.appendChild(option);
+      });
+    }
+
+    function populateYearSelects() {
+      const currentYear = new Date().getFullYear();
+      const years = Array.from({ length: 6 }, (_, index) => currentYear - index);
+      const selects = ['dashboard-year', 'report-year'];
+      selects.forEach(id => {
+        const select = document.getElementById(id);
+        select.innerHTML = '';
+        years.forEach(year => {
+          const option = document.createElement('option');
+          option.value = year;
+          option.textContent = year;
+          select.appendChild(option);
+        });
+        select.value = currentYear;
+      });
+    }
+
+    function resetExpenseForm() {
+      editingExpenseId = null;
+      document.getElementById('expense-form').reset();
+      document.getElementById('expense-date').value = today();
+      document.getElementById('expense-submit').textContent = 'Save Expense';
+    }
+
+    function resetSaleForm() {
+      editingSaleId = null;
+      document.getElementById('sale-form').reset();
+      document.getElementById('sale-date').value = today();
+      document.getElementById('sale-submit').textContent = 'Save Revenue';
+    }
+
+    function fillExpenseForm(item) {
+      editingExpenseId = item.id;
+      document.getElementById('expense-date').value = item.date;
+      document.getElementById('expense-amount').value = item.amount;
+      document.getElementById('expense-category').value = item.category;
+      document.getElementById('expense-description').value = item.description || '';
+      document.getElementById('expense-submit').textContent = 'Update Expense';
+      document.querySelector('[data-tab="expenses"]').click();
+    }
+
+    function fillSaleForm(item) {
+      editingSaleId = item.id;
+      document.getElementById('sale-date').value = item.date;
+      document.getElementById('sale-amount').value = item.amount;
+      document.getElementById('sale-description').value = item.description || '';
+      document.getElementById('sale-submit').textContent = 'Update Revenue';
+      document.querySelector('[data-tab="sales"]').click();
+    }
+
+    async function handleExpenseSubmit(event) {
+      event.preventDefault();
+      const payload = {
+        date: document.getElementById('expense-date').value,
+        amount: Number(document.getElementById('expense-amount').value),
+        category: document.getElementById('expense-category').value,
+        description: document.getElementById('expense-description').value.trim()
+      };
+      if (!payload.date || !payload.amount || !payload.category) {
+        showAlert('expense-alert', 'Please complete the date, amount, and category.', 'error');
+        return;
+      }
+      try {
+        if (editingExpenseId) {
+          await fetchJson(`/api/expenses/${editingExpenseId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          showAlert('expense-alert', 'Expense updated.', 'success');
+        } else {
+          await fetchJson('/api/expenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          showAlert('expense-alert', 'Expense saved.', 'success');
+        }
+        resetExpenseForm();
+        await loadData();
+      } catch (error) {
+        showAlert('expense-alert', error.message, 'error');
+      }
+    }
+
+    async function handleSaleSubmit(event) {
+      event.preventDefault();
+      const payload = {
+        date: document.getElementById('sale-date').value,
+        amount: Number(document.getElementById('sale-amount').value),
+        description: document.getElementById('sale-description').value.trim()
+      };
+      if (!payload.date || !payload.amount) {
+        showAlert('sale-alert', 'Please complete the date and amount.', 'error');
+        return;
+      }
+      try {
+        if (editingSaleId) {
+          await fetchJson(`/api/sales/${editingSaleId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          showAlert('sale-alert', 'Revenue updated.', 'success');
+        } else {
+          await fetchJson('/api/sales', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          showAlert('sale-alert', 'Revenue saved.', 'success');
+        }
+        resetSaleForm();
+        await loadData();
+      } catch (error) {
+        showAlert('sale-alert', error.message, 'error');
+      }
+    }
+
+    async function deleteExpense(id) {
+      if (!confirm('Delete this expense?')) return;
+      try {
+        await fetchJson(`/api/expenses/${id}`, { method: 'DELETE' });
+        await loadData();
+      } catch (error) {
+        showAlert('expense-alert', error.message, 'error');
+      }
+    }
+
+    async function deleteSale(id) {
+      if (!confirm('Delete this revenue entry?')) return;
+      try {
+        await fetchJson(`/api/sales/${id}`, { method: 'DELETE' });
+        await loadData();
+      } catch (error) {
+        showAlert('sale-alert', error.message, 'error');
+      }
+    }
+
+    function renderExpenseList() {
+      const host = document.getElementById('expense-list');
+      const sorted = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+      if (!sorted.length) {
+        host.innerHTML = '<div class="empty">No expenses recorded yet.</div>';
+        return;
+      }
+      host.innerHTML = `<ul class="list">${sorted.map(item => `
+        <li class="item">
+          <div class="item-main">
+            <div class="item-title">${item.category}</div>
+            <div class="item-meta">${item.description || 'No description'} · ${fmtDate(item.date)}</div>
+          </div>
+          <div class="item-amount">${currency(item.amount)}</div>
+          <div class="item-actions">
+            <button type="button" data-edit-expense="${item.id}">✎</button>
+            <button type="button" data-delete-expense="${item.id}">✕</button>
+          </div>
+        </li>
+      `).join('')}</ul>`;
+      host.querySelectorAll('[data-edit-expense]').forEach(button => {
+        button.addEventListener('click', () => {
+          const target = expenses.find(item => item.id === button.dataset.editExpense);
+          if (target) fillExpenseForm(target);
+        });
+      });
+      host.querySelectorAll('[data-delete-expense]').forEach(button => {
+        button.addEventListener('click', () => deleteExpense(button.dataset.deleteExpense));
+      });
+    }
+
+    function renderSaleList() {
+      const host = document.getElementById('sale-list');
+      const sorted = [...sales].sort((a, b) => b.date.localeCompare(a.date));
+      if (!sorted.length) {
+        host.innerHTML = '<div class="empty">No revenue recorded yet.</div>';
+        return;
+      }
+      host.innerHTML = `<ul class="list">${sorted.map(item => `
+        <li class="item">
+          <div class="item-main">
+            <div class="item-title">${item.description || 'Revenue'}</div>
+            <div class="item-meta">${fmtDate(item.date)}</div>
+          </div>
+          <div class="item-amount">${currency(item.amount)}</div>
+          <div class="item-actions">
+            <button type="button" data-edit-sale="${item.id}">✎</button>
+            <button type="button" data-delete-sale="${item.id}">✕</button>
+          </div>
+        </li>
+      `).join('')}</ul>`;
+      host.querySelectorAll('[data-edit-sale]').forEach(button => {
+        button.addEventListener('click', () => {
+          const target = sales.find(item => item.id === button.dataset.editSale);
+          if (target) fillSaleForm(target);
+        });
+      });
+      host.querySelectorAll('[data-delete-sale]').forEach(button => {
+        button.addEventListener('click', () => deleteSale(button.dataset.deleteSale));
+      });
+    }
+
+    function renderDashboard() {
+      const selectedYear = Number(document.getElementById('dashboard-year').value || new Date().getFullYear());
+      const statsHost = document.getElementById('dashboard-stats');
+      const trendHost = document.getElementById('dashboard-trend');
+      const year = selectedYear;
+      const summaries = [1, 2, 3, 4].map(quarter => {
+        const bounds = getQuarterBounds(year, quarter);
+        const spend = sumExpenses(expenses, bounds.start, bounds.end);
+        const revenue = sumSales(sales, bounds.start, bounds.end);
+        return { quarter, spend, revenue, net: revenue - spend };
+      });
+      const totalSpend = summaries.reduce((sum, item) => sum + item.spend, 0);
+      const totalRevenue = summaries.reduce((sum, item) => sum + item.revenue, 0);
+      const currentQuarter = getQuarterForDate(today());
+      const currentBounds = getQuarterBounds(year, currentQuarter);
+      const currentSpend = sumExpenses(expenses, currentBounds.start, currentBounds.end);
+      const currentRevenue = sumSales(sales, currentBounds.start, currentBounds.end);
+      statsHost.innerHTML = `
+        <div class="stat">
+          <div class="label">Annual Spend</div>
+          <div class="value">${currency(totalSpend)}</div>
+          <div class="sub">Across ${year}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Annual Revenue</div>
+          <div class="value">${currency(totalRevenue)}</div>
+          <div class="sub">Across ${year}</div>
+        </div>
+        <div class="stat">
+          <div class="label">Current Quarter</div>
+          <div class="value">${currency(currentSpend)} / ${currency(currentRevenue)}</div>
+          <div class="sub">Spend vs revenue for Q${currentQuarter}</div>
+        </div>
+      `;
+      trendHost.innerHTML = `
+        <div class="card" style="margin-bottom:0">
+          <h3 style="margin-bottom:0.6rem; font-size:1.05rem;">Quarter-by-quarter trend</h3>
+          <table>
+            <thead><tr><th>Quarter</th><th>Spend</th><th>Revenue</th><th>Net</th></tr></thead>
+            <tbody>
+              ${summaries.map((item, index) => {
+                const previous = summaries[index - 1];
+                const spendDelta = previous ? item.spend - previous.spend : 0;
+                const revenueDelta = previous ? item.revenue - previous.revenue : 0;
+                return `<tr>
+                  <td>Q${item.quarter}</td>
+                  <td>${currency(item.spend)} ${spendDelta !== 0 ? `<span class="${spendDelta >= 0 ? 'trend-up' : 'trend-down'}">${spendDelta >= 0 ? '▲' : '▼'} ${currency(Math.abs(spendDelta))}</span>` : ''}</td>
+                  <td>${currency(item.revenue)} ${revenueDelta !== 0 ? `<span class="${revenueDelta >= 0 ? 'trend-up' : 'trend-down'}">${revenueDelta >= 0 ? '▲' : '▼'} ${currency(Math.abs(revenueDelta))}</span>` : ''}</td>
+                  <td>${currency(item.net)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <h3 style="margin-bottom:0.6rem; font-size:1.05rem;">Quarterly snapshot</h3>
+          <p class="subtle">Use the year selector to compare spend and revenue for each quarter of the year.</p>
+          <ul class="list" style="margin-top:0.75rem;">
+            ${summaries.map(item => `<li class="item"><div class="item-main"><div class="item-title">Q${item.quarter}</div><div class="item-meta">Spend vs revenue</div></div><div class="item-amount">${currency(item.spend)} / ${currency(item.revenue)}</div></li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+
+    function renderQuarterReport() {
+      const year = Number(document.getElementById('report-year').value || new Date().getFullYear());
+      const bounds = getQuarterBounds(year, activeQuarter);
+      const totals = sumByCategory(expenses, bounds.start, bounds.end);
+      const spend = sumExpenses(expenses, bounds.start, bounds.end);
+      const revenue = sumSales(sales, bounds.start, bounds.end);
+      const host = document.getElementById('quarter-report');
+      host.innerHTML = `
+        <div class="grid two" style="margin-bottom:1rem;">
+          <div class="stat">
+            <div class="label">Quarter</div>
+            <div class="value">Q${activeQuarter} ${year}</div>
+            <div class="sub">${fmtDate(bounds.start)} – ${fmtDate(bounds.end)}</div>
+          </div>
+          <div class="stat">
+            <div class="label">Revenue</div>
+            <div class="value">${currency(revenue)}</div>
+            <div class="sub">Spend: ${currency(spend)} · Net: ${currency(revenue - spend)}</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Expense Category</th><th>Amount</th></tr></thead>
+          <tbody>
+            ${CATEGORIES.map(category => `<tr><td>${category}</td><td>${currency(totals[category])}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderAll() {
+      renderExpenseList();
+      renderSaleList();
+      renderDashboard();
+      renderQuarterReport();
+    }
+
+    function init() {
+      populateCategorySelect();
+      populateYearSelects();
+      document.getElementById('expense-date').value = today();
+      document.getElementById('sale-date').value = today();
+      document.getElementById('expense-form').addEventListener('submit', handleExpenseSubmit);
+      document.getElementById('sale-form').addEventListener('submit', handleSaleSubmit);
+      document.getElementById('expense-cancel').addEventListener('click', resetExpenseForm);
+      document.getElementById('sale-cancel').addEventListener('click', resetSaleForm);
+      document.getElementById('dashboard-year').addEventListener('change', renderDashboard);
+      document.getElementById('report-year').addEventListener('change', renderQuarterReport);
+      document.querySelectorAll('.pill[data-quarter]').forEach(button => {
+        button.addEventListener('click', () => {
+          activeQuarter = Number(button.dataset.quarter);
+          document.querySelectorAll('.pill[data-quarter]').forEach(item => item.classList.remove('active'));
+          button.classList.add('active');
+          renderQuarterReport();
+        });
+      });
+      document.getElementById('main-nav').addEventListener('click', event => {
+        const button = event.target.closest('button[data-tab]');
+        if (!button) return;
+        document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+        document.querySelectorAll('#main-nav button').forEach(item => item.classList.remove('active'));
+        document.getElementById(`tab-${button.dataset.tab}`).classList.add('active');
+        button.classList.add('active');
+      });
+      document.querySelector('.pill[data-dashboard-year="current"]').addEventListener('click', () => {
+        document.getElementById('dashboard-year').value = new Date().getFullYear();
+        renderDashboard();
+      });
+      loadData();
+    }
+
+    init();
+  </script>
+</body>
+</html>
