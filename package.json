@@ -1,0 +1,14 @@
+{
+  "name": "tnt-tax-tracker",
+  "version": "1.0.0",
+  "description": "TNT Tax Tracker web app for expenses, revenue, and quarterly reporting",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.11.3"
+  }
+}
