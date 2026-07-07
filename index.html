@@ -189,10 +189,10 @@
   </header>
 
   <nav id="main-nav">
+    <button class="active" data-tab="dashboard">Dashboard</button>
     <button data-tab="expenses">Expenses</button>
     <button data-tab="sales">Sales Revenue</button>
     <button data-tab="reports">Quarterly Reports</button>
-    <button class="active" data-tab="dashboard">Dashboard</button>
   </nav>
 
   <div class="container">
@@ -443,12 +443,20 @@
     }
 
     async function fetchJson(url, options) {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Request failed');
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          const error = await response.text();
+          const parsed = JSON.parse(error).error || error;
+          throw new Error(`API error: ${response.status} - ${parsed}`);
+        }
+        return response.headers.get('content-type')?.includes('application/json') ? response.json() : response.text();
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+          throw new Error('Cannot connect to server. Make sure it\'s running: npm start');
+        }
+        throw error;
       }
-      return response.headers.get('content-type')?.includes('application/json') ? response.json() : response.text();
     }
 
     async function loadData() {
@@ -462,8 +470,12 @@
         sales = saleData;
         renderAll();
       } catch (error) {
-        showAlert('expense-alert', error.message, 'error');
-        showAlert('sale-alert', error.message, 'error');
+        const msg = error.message || 'Failed to load data';
+        const fullMsg = window.location.protocol === 'file:'
+          ? 'Server not running. Open http://localhost:3000 in your browser.'
+          : msg;
+        showAlert('expense-alert', fullMsg, 'error');
+        showAlert('sale-alert', fullMsg, 'error');
       }
     }
 
@@ -565,7 +577,11 @@
         resetExpenseForm();
         await loadData();
       } catch (error) {
-        showAlert('expense-alert', error.message, 'error');
+        const msg = error.message || 'Failed to save expense';
+        const fullMsg = window.location.protocol === 'file:'
+          ? 'Server not running. Start the app: npm start'
+          : msg;
+        showAlert('expense-alert', fullMsg, 'error');
       }
     }
 
@@ -599,7 +615,11 @@
         resetSaleForm();
         await loadData();
       } catch (error) {
-        showAlert('sale-alert', error.message, 'error');
+        const msg = error.message || 'Failed to save revenue';
+        const fullMsg = window.location.protocol === 'file:'
+          ? 'Server not running. Start the app: npm start'
+          : msg;
+        showAlert('sale-alert', fullMsg, 'error');
       }
     }
 
