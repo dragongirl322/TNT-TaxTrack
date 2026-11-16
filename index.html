@@ -197,6 +197,7 @@
 
   <div class="container">
     <div id="storage-status" class="alert" role="status" aria-live="polite">Checking database connection…</div>
+    <div id="backup-status" class="alert" role="status" aria-live="polite">Checking automatic backup status…</div>
     <div id="tab-dashboard" class="panel active">
       <h2>Dashboard</h2>
       <div class="card">
@@ -347,6 +348,25 @@
         updateStorageStatus(health.ok === true && health.storage === 'postgresql');
       } catch {
         updateStorageStatus(false);
+      }
+    }
+
+    async function checkBackupStatus() {
+      const host = document.getElementById('backup-status');
+      try {
+        const response = await fetch('/api/backup-status', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+        if (!response.ok) throw new Error('Backup status unavailable');
+        const status = await response.json();
+        const lastBackup = status.lastSuccessfulBackup
+          ? new Date(status.lastSuccessfulBackup).toLocaleString()
+          : 'none confirmed';
+        host.className = `alert ${status.healthy ? 'success' : 'error'}`;
+        host.textContent = status.healthy
+          ? `Last successful automatic backup: ${lastBackup}. Encrypted copies are kept for 90 days.`
+          : `Automatic backups need attention. Last successful backup: ${lastBackup}. Download a full backup on Quarterly Reports and check GitHub Actions.`;
+      } catch {
+        host.className = 'alert error';
+        host.textContent = 'Automatic backup status could not be verified. You can download a full backup on Quarterly Reports.';
       }
     }
 
@@ -903,6 +923,8 @@
       document.getElementById('expense-submit').disabled = true;
       document.getElementById('sale-submit').disabled = true;
       setInterval(checkStorage, 30000);
+      checkBackupStatus();
+      setInterval(checkBackupStatus, 300000);
       document.getElementById('dashboard-year').addEventListener('change', renderDashboard);
       document.getElementById('report-year').addEventListener('change', renderQuarterReport);
       document.querySelectorAll('.pill[data-quarter]').forEach(button => {

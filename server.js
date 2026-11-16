@@ -90,6 +90,19 @@ async function readSnapshot(pool) {
   }
 }
 
+function backupStatus(runs, now = Date.now()) {
+  const success = runs.find(run => run.conclusion === 'success' && Number.isFinite(Date.parse(run.updated_at)));
+  const completed = runs.find(run => run.status === 'completed');
+  const lastSuccessfulBackup = success?.updated_at || null;
+  const latestRunFailed = Boolean(completed && completed.conclusion !== 'success');
+  return {
+    healthy: Boolean(lastSuccessfulBackup && now - Date.parse(lastSuccessfulBackup) < 8 * 60 * 60 * 1000 && !latestRunFailed),
+    lastSuccessfulBackup,
+    latestRunFailed,
+    url: 'https://github.com/dragongirl322/TNT-TaxTrack/actions/workflows/database-backup.yml'
+  };
+}
+
 function createApp(pool) {
   if (!pool) throw new Error('A PostgreSQL pool is required.');
   const app = express();
@@ -100,6 +113,26 @@ function createApp(pool) {
   });
   app.use(express.json());
   const route = handler => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
+
+  let backupCache;
+  app.get('/api/backup-status', async (_req, res) => {
+    try {
+      if (!backupCache || Date.now() - backupCache.checkedAt > 5 * 60 * 1000) {
+        // Public workflow metadata only. No database records or secrets are sent to this API.
+        const response = await fetch('https://api.github.com/repos/dragongirl322/TNT-TaxTrack/actions/workflows/database-backup.yml/runs?per_page=20', {
+          headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'TNT-Tax-Tracker' },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (!response.ok) throw new Error('Backup status unavailable');
+        const data = await response.json();
+        if (!Array.isArray(data.workflow_runs)) throw new Error('Invalid backup status');
+        backupCache = { checkedAt: Date.now(), runs: data.workflow_runs };
+      }
+      res.json(backupStatus(backupCache.runs));
+    } catch {
+      res.status(502).json({ error: 'Automatic backup status could not be checked.' });
+    }
+  });
 
   app.get('/api/health', route(async (_req, res) => {
     await pool.query('SELECT id FROM expenses LIMIT 0');
@@ -200,4 +233,4 @@ async function start() {
 }
 
 if (require.main === module) start();
-module.exports = { createApp, createPool, initializeDatabase, normalizeRecord, readSnapshot };
+module.exports = { createApp, createPool, initializeDatabase, normalizeRecord, readSnapshot, backupStatus };

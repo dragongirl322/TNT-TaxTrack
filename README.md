@@ -48,6 +48,8 @@ The private recovery key copy is `recovery/backup-encryption-key.txt` in this lo
 
 **Failure notifications:** The first backup run is triggered and verified during setup. GitHub Actions reports subsequent failures to the workflow owner according to that account's notification settings. Review the latest successful backup before relying on a restore.
 
+The app also checks public workflow completion metadata and shows the last successful backup time. It warns when the latest completed run failed, no successful run is available, a backup is more than eight hours old, or status cannot be verified. Financial records and secrets are never included in that status request. GitHub can delay scheduled runs and [disable public-repository schedules after 60 days of repository inactivity](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule); if that happens, re-enable the workflow in GitHub Actions. The warning and manual download remain available in the app.
+
 Railway native volume backup schedules were unavailable on the current workspace plan at setup; no claim is made that Railway-native backups are enabled.
 
 ## Recovery

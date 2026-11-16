@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
-const { createApp, createPool, normalizeRecord } = require('../server');
+const { createApp, createPool, normalizeRecord, backupStatus } = require('../server');
 const { encryptBackup, decryptBackup } = require('../scripts/database-backup');
 
 test('missing database configuration refuses startup instead of accepting temporary saves', () => {
@@ -47,4 +47,13 @@ test('encrypted backups round-trip, hide record details, and reject tampering or
   const changed=JSON.parse(encrypted);
   const bytes=Buffer.from(changed.data,'base64'); bytes[0]^=1; changed.data=bytes.toString('base64');
   assert.throws(()=>decryptBackup(JSON.stringify(changed),key));
+});
+
+test('backup monitoring warns for missing, overdue, or failed backups', () => {
+  const now = Date.parse('2026-11-16T20:00:00Z');
+  const recent = { status:'completed', conclusion:'success', updated_at:'2026-11-16T19:00:00Z' };
+  assert.equal(backupStatus([recent], now).healthy, true);
+  assert.equal(backupStatus([], now).healthy, false);
+  assert.equal(backupStatus([{...recent, updated_at:'2026-11-16T10:00:00Z'}], now).healthy, false);
+  assert.equal(backupStatus([{status:'completed', conclusion:'failure'}, recent], now).healthy, false);
 });
