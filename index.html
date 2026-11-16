@@ -283,6 +283,7 @@
           <button class="pill" data-quarter="2">Q2</button>
           <button class="pill" data-quarter="3">Q3</button>
           <button class="pill" data-quarter="4">Q4</button>
+          <button class="pill" data-quarter="year" id="full-year-report">2026</button>
         </div>
         <div id="quarter-report"></div>
       </div>
@@ -771,7 +772,18 @@
 
     function renderQuarterReport() {
       const year = Number(document.getElementById('report-year').value || new Date().getFullYear());
-      const bounds = getQuarterBounds(year, activeQuarter);
+      const isFullYear = activeQuarter === 'year';
+      const bounds = isFullYear
+        ? { start: `${year}-01-01`, end: `${year}-12-31` }
+        : getQuarterBounds(year, activeQuarter);
+      const yearButton = document.getElementById('full-year-report');
+      yearButton.textContent = year;
+      yearButton.setAttribute('aria-label', `${year} end-of-year report`);
+      document.querySelectorAll('.pill[data-quarter]').forEach(button => {
+        const selected = button.dataset.quarter === String(activeQuarter);
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+      });
       const totals = sumByCategory(expenses, bounds.start, bounds.end);
       const spend = sumExpenses(expenses, bounds.start, bounds.end);
       const revenue = sumSales(sales, bounds.start, bounds.end);
@@ -779,8 +791,8 @@
       host.innerHTML = `
         <div class="grid two" style="margin-bottom:1rem;">
           <div class="stat">
-            <div class="label">Quarter</div>
-            <div class="value">Q${activeQuarter} ${year}</div>
+            <div class="label">${isFullYear ? 'End-of-Year Report' : 'Quarter'}</div>
+            <div class="value">${isFullYear ? year : `Q${activeQuarter} ${year}`}</div>
             <div class="sub">${fmtDate(bounds.start)} – ${fmtDate(bounds.end)}</div>
           </div>
           <div class="stat">
@@ -794,6 +806,9 @@
           <tbody>
             ${CATEGORIES.map(category => `<tr><td>${category}</td><td>${currency(totals[category])}</td></tr>`).join('')}
           </tbody>
+          <tfoot>
+            <tr><th scope="row">Total Expenses</th><td><strong>${currency(spend)}</strong></td></tr>
+          </tfoot>
         </table>
       `;
     }
@@ -818,9 +833,7 @@
       document.getElementById('report-year').addEventListener('change', renderQuarterReport);
       document.querySelectorAll('.pill[data-quarter]').forEach(button => {
         button.addEventListener('click', () => {
-          activeQuarter = Number(button.dataset.quarter);
-          document.querySelectorAll('.pill[data-quarter]').forEach(item => item.classList.remove('active'));
-          button.classList.add('active');
+          activeQuarter = button.dataset.quarter === 'year' ? 'year' : Number(button.dataset.quarter);
           renderQuarterReport();
         });
       });
