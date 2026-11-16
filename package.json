@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node --test test/storage.test.js test/frontend.test.js",
+    "test:integration": "node --test test/postgres.test.js"
   },
   "dependencies": {
     "express": "^4.19.2",

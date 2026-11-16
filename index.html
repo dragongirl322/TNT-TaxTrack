@@ -196,6 +196,7 @@
   </nav>
 
   <div class="container">
+    <div id="storage-status" class="alert" role="status" aria-live="polite">Checking database connection…</div>
     <div id="tab-dashboard" class="panel active">
       <h2>Dashboard</h2>
       <div class="card">
@@ -276,6 +277,10 @@
 
     <div id="tab-reports" class="panel">
       <h2>Quarterly Reports</h2>
+      <div class="btn-row" style="margin:0 0 1rem;">
+        <button type="button" class="btn ghost" id="download-backup">Download Full Backup</button>
+      </div>
+      <p class="subtle" style="margin-bottom:1rem;">Save a copy of all expenses and revenue for every year to your device.</p>
       <div class="card">
         <div class="pill-row">
           <select id="report-year"></select>
@@ -319,6 +324,54 @@
     let editingExpenseId = null;
     let editingSaleId = null;
     let activeQuarter = 1;
+    let storageAvailable = false;
+    let pendingExpenseId = null;
+    let pendingSaleId = null;
+
+    function updateStorageStatus(connected) {
+      storageAvailable = connected;
+      const host = document.getElementById('storage-status');
+      host.className = `alert ${connected ? 'success' : 'error'}`;
+      host.textContent = connected
+        ? 'Database connected. Saved entries are stored in PostgreSQL.'
+        : 'Database connection unavailable. Saving is paused. Keep any unsaved entries here and retry when the connection returns.';
+      ['expense-submit', 'sale-submit'].forEach(id => {
+        const button = document.getElementById(id);
+        button.disabled = !connected || button.dataset.saving === 'true';
+      });
+    }
+
+    async function checkStorage() {
+      try {
+        const health = await fetchJson('/api/health');
+        updateStorageStatus(health.ok === true && health.storage === 'postgresql');
+      } catch {
+        updateStorageStatus(false);
+      }
+    }
+
+    async function downloadBackup() {
+      const button = document.getElementById('download-backup');
+      button.disabled = true;
+      try {
+        const backup = await fetchJson('/api/backup');
+        if (backup.format !== 'tnt-tax-tracker' || !Array.isArray(backup.expenses) || !Array.isArray(backup.sales)) {
+          throw new Error('Backup could not be verified.');
+        }
+        const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `tnt-tax-tracker-${backup.exportedAt.slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } catch (error) {
+        alert(`Backup download failed: ${error.message}`);
+      } finally {
+        button.disabled = false;
+      }
+    }
 
     function currency(value) {
       return '$' + Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -391,8 +444,7 @@
               body: JSON.stringify(item)
             }))
           ]);
-          localStorage.setItem('expenses', '[]');
-          localStorage.setItem('sales', '[]');
+          // Preserve the original browser copies even after a successful migration.
         }
       } catch (error) {
         console.warn('Legacy data sync skipped:', error.message);
@@ -445,16 +497,17 @@
 
     async function fetchJson(url, options) {
       try {
-        const response = await fetch(url, options);
+        const response = await fetch(url, { ...options, cache: 'no-store', signal: AbortSignal.timeout(15000) });
         if (!response.ok) {
-          const error = await response.text();
-          const parsed = JSON.parse(error).error || error;
-          throw new Error(`API error: ${response.status} - ${parsed}`);
+          const body = await response.json().catch(() => ({}));
+          if (response.status >= 500) updateStorageStatus(false);
+          throw new Error(body.error || `Request failed (${response.status}).`);
         }
         return response.headers.get('content-type')?.includes('application/json') ? response.json() : response.text();
       } catch (error) {
-        if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-          throw new Error('Cannot connect to server. Make sure it\'s running: npm start');
+        if (error instanceof TypeError || error.name === 'TimeoutError' || error.name === 'AbortError') {
+          updateStorageStatus(false);
+          throw new Error('Cannot reach the database. Keep your entry and retry when the connection returns.');
         }
         throw error;
       }
@@ -463,14 +516,13 @@
     async function loadData() {
       try {
         await syncLegacyData();
-        const [expenseData, saleData] = await Promise.all([
-          fetchJson('/api/expenses'),
-          fetchJson('/api/sales')
-        ]);
-        expenses = expenseData;
-        sales = saleData;
+        const snapshot = await fetchJson('/api/summary');
+        expenses = snapshot.expenses;
+        sales = snapshot.sales;
         renderAll();
+        updateStorageStatus(true);
       } catch (error) {
+        updateStorageStatus(false);
         const msg = error.message || 'Failed to load data';
         const fullMsg = window.location.protocol === 'file:'
           ? 'Server not running. Open http://localhost:3000 in your browser.'
@@ -516,6 +568,7 @@
 
     function resetExpenseForm() {
       editingExpenseId = null;
+      pendingExpenseId = null;
       document.getElementById('expense-form').reset();
       document.getElementById('expense-date').value = today();
       document.getElementById('expense-submit').textContent = 'Save Expense';
@@ -523,6 +576,7 @@
 
     function resetSaleForm() {
       editingSaleId = null;
+      pendingSaleId = null;
       document.getElementById('sale-form').reset();
       document.getElementById('sale-date').value = today();
       document.getElementById('sale-submit').textContent = 'Save Revenue';
@@ -549,6 +603,8 @@
 
     async function handleExpenseSubmit(event) {
       event.preventDefault();
+      const submit = document.getElementById('expense-submit');
+      if (!storageAvailable || submit.dataset.saving === 'true') return;
       const payload = {
         date: document.getElementById('expense-date').value,
         amount: Number(document.getElementById('expense-amount').value),
@@ -559,6 +615,8 @@
         showAlert('expense-alert', 'Please complete the date, amount, and category.', 'error');
         return;
       }
+      submit.dataset.saving = 'true';
+      submit.disabled = true;
       try {
         if (editingExpenseId) {
           await fetchJson(`/api/expenses/${editingExpenseId}`, {
@@ -568,10 +626,11 @@
           });
           showAlert('expense-alert', 'Expense updated.', 'success');
         } else {
+          pendingExpenseId ||= crypto.randomUUID();
           await fetchJson('/api/expenses', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ ...payload, id: pendingExpenseId })
           });
           showAlert('expense-alert', 'Expense saved.', 'success');
         }
@@ -583,11 +642,16 @@
           ? 'Server not running. Start the app: npm start'
           : msg;
         showAlert('expense-alert', fullMsg, 'error');
+      } finally {
+        submit.dataset.saving = 'false';
+        submit.disabled = !storageAvailable;
       }
     }
 
     async function handleSaleSubmit(event) {
       event.preventDefault();
+      const submit = document.getElementById('sale-submit');
+      if (!storageAvailable || submit.dataset.saving === 'true') return;
       const payload = {
         date: document.getElementById('sale-date').value,
         amount: Number(document.getElementById('sale-amount').value),
@@ -597,6 +661,8 @@
         showAlert('sale-alert', 'Please complete the date and amount.', 'error');
         return;
       }
+      submit.dataset.saving = 'true';
+      submit.disabled = true;
       try {
         if (editingSaleId) {
           await fetchJson(`/api/sales/${editingSaleId}`, {
@@ -606,10 +672,11 @@
           });
           showAlert('sale-alert', 'Revenue updated.', 'success');
         } else {
+          pendingSaleId ||= crypto.randomUUID();
           await fetchJson('/api/sales', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ ...payload, id: pendingSaleId })
           });
           showAlert('sale-alert', 'Revenue saved.', 'success');
         }
@@ -621,6 +688,9 @@
           ? 'Server not running. Start the app: npm start'
           : msg;
         showAlert('sale-alert', fullMsg, 'error');
+      } finally {
+        submit.dataset.saving = 'false';
+        submit.disabled = !storageAvailable;
       }
     }
 
@@ -829,6 +899,10 @@
       document.getElementById('sale-form').addEventListener('submit', handleSaleSubmit);
       document.getElementById('expense-cancel').addEventListener('click', resetExpenseForm);
       document.getElementById('sale-cancel').addEventListener('click', resetSaleForm);
+      document.getElementById('download-backup').addEventListener('click', downloadBackup);
+      document.getElementById('expense-submit').disabled = true;
+      document.getElementById('sale-submit').disabled = true;
+      setInterval(checkStorage, 30000);
       document.getElementById('dashboard-year').addEventListener('change', renderDashboard);
       document.getElementById('report-year').addEventListener('change', renderQuarterReport);
       document.querySelectorAll('.pill[data-quarter]').forEach(button => {
